@@ -1,0 +1,10 @@
+QGAN_Project/
+├── README.md
+├── LICENSE
+├── qgan/
+│   ├── __init__.py
+│   ├── models.py
+│   ├── train.py
+│   └── utils.py
+├── requirements.txt
+└── setup.py
