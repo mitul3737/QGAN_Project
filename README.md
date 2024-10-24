@@ -37,4 +37,4 @@ Pull requests are welcome. For major changes, please open an issue first to disc
 This project is licensed under the terms of the Commercial Use License and the Public Non-Commercial License. See the LICENSE file for details.
 
 ## Call for Professionals
-We are seeking professionals in the fields of quantum computing, AI, and deep learning to collaborate on this project. If you are interested, please contact us at reece.c.dixon@live.com.
+We are seeking professionals in the fields of quantum computing, AI, and deep learning to collaborate on this project. If you are interested, please contact us at quantascriptor@gmail.com.
