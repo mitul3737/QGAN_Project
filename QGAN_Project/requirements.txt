@@ -1,3 +1,0 @@
-torch
-pennylane
-pennylane-qchem
