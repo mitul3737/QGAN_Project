@@ -1,58 +1,67 @@
-
-# Quantum Generative Adversarial Network (QGAN)
-# Developed by Reece Colton Dixon
-# License: Commercial Use License and Public Non-Commercial License
-# For license information, see the LICENSE file
-
 import torch
-import pennylane as qml
-import pennylane_qchem as qchem
-from qgan.models import DiscriminatorQuantumCircuit, GeneratorQuantumCircuit
+from torch.utils.data import DataLoader, TensorDataset
+from models import GeneratorQuantumCircuit, DiscriminatorQuantumCircuit
 
-# Binary Cross-Entropy Loss function
-criterion = torch.nn.BCELoss()
-
-# Define Hyperparameters
-epochs = 100
-batch_size = 64
-learning_rate = 0.0002
-
-def qgan_loss(generated_samples, real_samples, discriminator):
-    discriminator_real_output = discriminator(real_samples)
-    discriminator_fake_output = discriminator(generated_samples)
-
-    generator_loss = -torch.mean(discriminator_fake_output)
-    discriminator_loss = criterion(discriminator_real_output, torch.ones_like(discriminator_real_output)) +                          criterion(discriminator_fake_output, torch.zeros_like(discriminator_fake_output))
-
-    return generator_loss, discriminator_loss
+def get_data_loader(batch_size):
+    # Create quantum data in [0,1] range
+    num_samples = 1000
+    num_qubits = 4
+    real_data = torch.rand(num_samples, num_qubits)  # Replace with actual quantum data
+    dataset = TensorDataset(real_data)
+    return DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 def main():
-    discriminator = DiscriminatorQuantumCircuit()
-    generator = GeneratorQuantumCircuit()
+    # Hyperparameters
+    n_qubits = 4
+    n_layers = 2
+    batch_size = 32
+    num_epochs = 100
+    learning_rate = 0.01
+    
+    # Initialize models
+    generator = GeneratorQuantumCircuit(n_qubits, n_layers)
+    discriminator = DiscriminatorQuantumCircuit(n_qubits, n_layers)
+    
+    # Optimizers
     optimizer_gen = torch.optim.Adam(generator.parameters(), lr=learning_rate)
-    optimizer_disc = torch.optim.Adam(discriminator.parameters(), lr=learning_rate)
-
-    # Assuming we have a data loader function `get_data_loader()` returning batches of real_samples
-    for epoch in range(epochs):
-        for real_samples in get_data_loader(batch_size):
-            # Generate fake samples from the generator
-            latent_space_samples = torch.randn(batch_size, 100)  # Latent space for GAN
-            generated_samples = generator(latent_space_samples)
+    optimizer_dis = torch.optim.Adam(discriminator.parameters(), lr=learning_rate)
+    
+    # Loss function
+    loss_fn = torch.nn.BCELoss()
+    
+    # Training loop
+    for epoch in range(num_epochs):
+        for real_samples, in get_data_loader(batch_size):
             
-            # Compute losses
-            gen_loss, disc_loss = qgan_loss(generated_samples, real_samples, discriminator)
-
-            # Update Generator
+            # 1. Train Discriminator on real samples
+            optimizer_dis.zero_grad()
+            real_predictions = discriminator(real_samples)
+            real_targets = torch.ones_like(real_predictions)
+            loss_real = loss_fn(real_predictions, real_targets)
+            
+            # 2. Generate fake samples
+            noise = torch.rand(batch_size, n_qubits)  # [0,1] range
+            fake_samples = generator(noise)
+            
+            # 3. Train Discriminator on fake samples
+            fake_predictions = discriminator(fake_samples.detach())
+            fake_targets = torch.zeros_like(fake_predictions)
+            loss_fake = loss_fn(fake_predictions, fake_targets)
+            
+            # 4. Update Discriminator
+            loss_d = loss_real + loss_fake
+            loss_d.backward()
+            optimizer_dis.step()
+            
+            # 5. Train Generator
             optimizer_gen.zero_grad()
-            gen_loss.backward()
+            gen_predictions = discriminator(fake_samples)
+            gen_targets = torch.ones_like(gen_predictions)
+            loss_g = loss_fn(gen_predictions, gen_targets)
+            loss_g.backward()
             optimizer_gen.step()
-
-            # Update Discriminator
-            optimizer_disc.zero_grad()
-            disc_loss.backward()
-            optimizer_disc.step()
-
-        print(f'Epoch [{epoch + 1}/{epochs}] | Generator Loss: {gen_loss.item()} | Discriminator Loss: {disc_loss.item()}')
+        
+        print(f"Epoch {epoch+1}/{num_epochs}, D Loss: {loss_d.item():.4f}, G Loss: {loss_g.item():.4f}")
 
 if __name__ == "__main__":
     main()
